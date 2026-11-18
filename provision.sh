@@ -15,6 +15,11 @@
 #    H3_FL2VA      = 1 เพื่อโหลดโมเดล FL2VA (first/last frame) เพิ่ม ~23 GB
 #    EXTRA_LORAS   = รายการ URL LoRA เพิ่มเติม คั่นด้วยช่องว่าง
 #
+#  โมเดล H3 ตัวอื่น (เช่น merge / finetune จาก HuggingFace):
+#    EXTRA_DIFFUSION = รายการ URL ไฟล์ .safetensors คั่นด้วยช่องว่าง → models/diffusion_models
+#    H3_BASE         = 0 เพื่อไม่โหลด ref2va ตัวตั้งต้น + turbo LoRA (ประหยัด ~23 GB) · default 1
+#    INSTALL_RES4LYF = 1 เพื่อลง node RES4LYF (ได้ scheduler beta57 ฯลฯ)
+#
 #  Civitai (ต้องเป็นของ H3 เท่านั้น — LoRA ของ Wan/SDXL/Flux ใช้ไม่ได้):
 #    CIVITAI_TOKEN  = API key ของ Civitai (แนะนำใส่เป็น RunPod Secret)
 #    CIVITAI_BASE   = https://civitai.red (default) | https://civitai.com
@@ -51,6 +56,7 @@ install_node() {
   echo "✅ node: $(basename "$dir")"
 }
 install_node https://github.com/tritant/ComfyUI_MiniMax_H3_Extender.git
+[ "${INSTALL_RES4LYF:-0}" = "1" ] && install_node https://github.com/ClownsharkBatwing/RES4LYF.git
 
 # ---- 2) Workflow ---------------------------------------------------------------
 if [ -n "${REPO_RAW:-}" ]; then
@@ -73,12 +79,15 @@ esac
 
 # "URL|โฟลเดอร์"
 LIST=(
-  "$HF/diffusion_models/$REF2VA|diffusion_models"
   "$HF/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors|text_encoders"
   "$HF/vae/minimax_h3_video_vae_fp16.safetensors|vae"
   "$HF/vae/minimax_h3_audio_vae_fp32.safetensors|vae"
-  "$HF/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors|loras"
 )
+if [ "${H3_BASE:-1}" != "0" ]; then
+  LIST+=("$HF/diffusion_models/$REF2VA|diffusion_models"
+         "$HF/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors|loras")
+fi
+for u in ${EXTRA_DIFFUSION:-}; do LIST+=("$u|diffusion_models"); done
 if [ "${H3_FL2VA:-0}" = "1" ]; then
   LIST+=("$HF/diffusion_models/$FL2VA|diffusion_models"
          "$HF/loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors|loras")
